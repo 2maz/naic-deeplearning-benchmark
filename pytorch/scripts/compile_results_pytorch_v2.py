@@ -4,6 +4,8 @@ import sys
 import re
 import argparse
 
+from pathlib import Path
+
 import pandas as pd
 
 list_test_fp32 = {
@@ -11,16 +13,16 @@ list_test_fp32 = {
         "PyTorch_resnet50_FP32": ("resnet50", "^.*Summary: train.loss.*$", 11),
         "PyTorch_gnmt_FP32": ("gnmt", "^.*Training:.*$", 4),
         "PyTorch_ncf_FP32": ("ncf", "^.*best_train_throughput.*$", 7),
-        # "PyTorch_transformerxlbase_FP32": (
-        #     "transformerxlbase",
-        #     "^.*Training throughput:.*$",
-        #     -2,
-        # ),
-        # "PyTorch_transformerxllarge_FP32": (
-        #     "transformerxllarge",
-        #     "^.*Training throughput:.*$",
-        #     -2,
-        # ),
+        "PyTorch_transformerxlbase_FP32": (
+            "transformerxlbase",
+            "^.*Training throughput:.*$",
+            -2,
+        ),
+        "PyTorch_transformerxllarge_FP32": (
+            "transformerxllarge",
+            "^.*Training throughput:.*$",
+            -2,
+        ),
         "PyTorch_tacotron2_FP32": ("tacotron2", "^.*train_items_per_sec :.*$", -2),
         "PyTorch_waveglow_FP32": ("waveglow", "^.*train_items_per_sec :.*$", -2),
         "PyTorch_bert_large_squad_FP32": (
@@ -40,16 +42,16 @@ list_test_fp16 = {
         "PyTorch_resnet50_AMP": ("resnet50", "^.*Summary: train.loss.*$", 11),
         "PyTorch_gnmt_FP16": ("gnmt", "^.*Training:.*$", 4),
         "PyTorch_ncf_FP16": ("ncf", "^.*best_train_throughput.*$", 7),
-        # "PyTorch_transformerxlbase_FP16": (
-        #     "transformerxlbase",
-        #     "^.*Training throughput:.*$",
-        #     -2,
-        # ),
-        # "PyTorch_transformerxllarge_FP16": (
-        #     "transformerxllarge",
-        #     "^.*Training throughput:.*$",
-        #     -2,
-        # ),
+        "PyTorch_transformerxlbase_FP16": (
+            "transformerxlbase",
+            "^.*Training throughput:.*$",
+            -2,
+        ),
+        "PyTorch_transformerxllarge_FP16": (
+            "transformerxllarge",
+            "^.*Training throughput:.*$",
+            -2,
+        ),
         "PyTorch_tacotron2_FP16": ("tacotron2", "^.*train_items_per_sec :.*$", -2),
         "PyTorch_waveglow_FP16": ("waveglow", "^.*train_items_per_sec :.*$", -2),
         "PyTorch_bert_large_squad_FP16": (
@@ -115,13 +117,16 @@ def main():
     parser.add_argument(
         "--path", type=str, default="results_v2", help="path that has the results"
     )
+    parser.add_argument(
+        "-o","--output-path", type=str, default=None, help="target directory where to store the results"
+    )
 
     parser.add_argument(
         "--precision",
         type=str,
         default="fp32",
         choices=["fp32", "fp16"],
-        help="Choose becnhmark precision",
+        help="Choose benchmark precision",
     )
 
     args = parser.parse_args()
@@ -159,7 +164,13 @@ def main():
                 args.path,
             )
 
-    df_throughput.to_csv("pytorch-train-throughput-v2-" + args.precision + ".csv")
+    output_path = Path()
+    if args.output_path is not None:
+        output_path = Path(args.output_path)
+
+    output_filename = output_path / f"pytorch-train-throughput-v2-{args.precision}.csv"
+    df_throughput.to_csv(output_filename)
+    print(f"Compiled results into {output_filename}")
 
 
 

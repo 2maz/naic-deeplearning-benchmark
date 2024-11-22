@@ -4,7 +4,7 @@ SYSTEM=${1:-"2080Ti"}
 func=${2:-"benchmark_pytorch_ncf"}
 task=${3:-"PyTorch_ncf_FP32"}
 
-source config_v2/config_pytorch_${SYSTEM}.sh
+source config_v1/config_pytorch_1GB.sh $NUM_GPU $GPU_SIZE
 
 benchmark_pytorch_ssd() {
     

@@ -28,6 +28,8 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+SCRIPT_DIR=$(realpath -L $(dirname $0))
+
 echo "=== Acquiring datasets ==="
 echo "---"
 
@@ -46,15 +48,18 @@ cd /data/transformer-xl
 
 echo "- Downloading WikiText-103 (WT2)"
 if [[ ! -d 'wikitext-103' ]]; then
-    wget --continue https://s3.amazonaws.com/research.metamind.io/wikitext/wikitext-103-v1.zip
-    unzip -q wikitext-103-v1.zip
-    cd wikitext-103
-    mv wiki.train.tokens train.txt
-    mv wiki.valid.tokens valid.txt
-    mv wiki.test.tokens test.txt
-    cd ..
-    rm wikitext-103-v1.zip
-    cd ..
+    pip install datasets
+    python $SCRIPT_DIR/get_wikitext.py --target-dir /data/transformer-xl/wikitext-103
+
+    #wget --continue https://s3.amazonaws.com/research.metamind.io/wikitext/wikitext-103-v1.zip
+    #unzip -q wikitext-103-v1.zip
+    #cd wikitext-103
+    #mv wiki.train.tokens train.txt
+    #mv wiki.valid.tokens valid.txt
+    #mv wiki.test.tokens test.txt
+    #cd ..
+    #rm wikitext-103-v1.zip
+    #cd ..
 fi
 
 #echo "- Downloading enwik8 (Character)"

@@ -4,8 +4,9 @@ SYSTEM=${1:-"2080Ti"}
 TASK_NAME=${2:-"all"}
 TIME_OUT=${3:-"1800"}
 
-echo ${SYSTEM}
-echo ${NUM_GPU}
+echo "System: ${SYSTEM}"
+echo "Number of GPUs: ${NUM_GPU}"
+echo "GPU_SIZE: ${GPU_SIZE} GB"
 
 declare -A TASKS=(
     [PyTorch_SSD_FP32]=benchmark_pytorch_ssd
@@ -34,8 +35,13 @@ declare -A TASKS=(
 
 main() {
     for task in "${!TASKS[@]}"; do
-        if [[ "${task,,}" == *"$TASK_NAME"* ]] || [ "$TASK_NAME" == "all" ]; then
+        if [[ "${task}" == "$TASK_NAME" ]] || [ "$TASK_NAME" == "all" ]; then
+            echo "timeout -s SIGKILL $TIME_OUT bash ./benchmark_pytorch.sh $SYSTEM ${TASKS[${task}]} $task"
             timeout -s SIGKILL $TIME_OUT bash ./benchmark_pytorch.sh $SYSTEM ${TASKS[${task}]} $task
+
+            echo "WAITING FOR CLEANUP ..."
+            sleep 30
+            echo "DONE"
         fi
     done
 
