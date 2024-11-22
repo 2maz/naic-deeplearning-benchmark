@@ -84,6 +84,8 @@ def gather_throughput(
     count = 0.000000001
     total_throughput = 0.0
 
+    errors = []
+
     if os.path.exists(path):
         for filename in os.listdir(path):
             if filename.endswith(".txt"):
@@ -105,10 +107,12 @@ def gather_throughput(
                     flag = True
 
                 if not flag:
-                    print(system + "/" + name + " " + filename + ": something wrong")
+                    errors.append(f"{system=} {name=}: could not locate {pattern} in {filename}")
         df.at[system, column_name] = int(round(total_throughput / count, 2))
     else:
         df.at[system, column_name] = 0
+
+    return errors
 
 
 def main():
@@ -154,15 +158,17 @@ def main():
 
     df_throughput = df_throughput.fillna(-1.0)
 
+    all_errors = []
     for system in list_system:
         for test_name, value in sorted(list_test.items()):
-            gather_throughput(
+            errors = gather_throughput(
                 list_test,
                 test_name,
                 system,
                 df_throughput,
                 args.path,
             )
+            all_errors.extend(errors)
 
     output_path = Path()
     if args.output_path is not None:
@@ -171,6 +177,9 @@ def main():
     output_filename = output_path / f"pytorch-train-throughput-v2-{args.precision}.csv"
     df_throughput.to_csv(output_filename)
     print(f"Compiled results into {output_filename}")
+    error_msg = '\n    '.join(all_errors)
+    print(f"\nErrors:\n    {error_msg}")
+
 
 
 
