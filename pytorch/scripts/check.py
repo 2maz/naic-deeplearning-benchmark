@@ -22,11 +22,11 @@ def main():
                 for filename in os.listdir(task_dir):
                     if filename.endswith(".txt"):
                         with open(os.path.join(task_dir, filename), 'r') as f:
-                            last_line = f.readlines()[-1]
-                            if "DONE!" in last_line:
-                                print(colored("{: <35} : {: >10}".format(taskname, "sucessful"), "green"))
+                            last_line = f.readlines()[-2]
+                            if "SUCCESS" in last_line:
+                                print(colored("{: <35} : {: >10}".format(taskname, "successful"), "green"))
                             else:
-                                print(colored("{: <35} : {: >10}".format(taskname, "unsucessful"), "red"))
+                                print(colored("{: <35} : {: >10}".format(taskname, "unsuccessful"), "red"))
 
 
 if __name__ == "__main__":
