@@ -29,6 +29,7 @@ OUT_DIR=${11:-"/workspace/bert/results/SQuAD"}
 mode=${12:-"train eval"}
 CONFIG_FILE=${13:-"/workspace/bert/bert_configs/large.json"}
 max_steps=${14:-"-1"}
+gpu_device_type=${16:-device-type-in-squad}
 
 echo "out dir is $OUT_DIR"
 mkdir -p $OUT_DIR
@@ -96,6 +97,7 @@ CMD+=" --vocab_file=$vocab_file "
 CMD+=" --config_file=$CONFIG_FILE "
 CMD+=" --max_steps=$max_steps "
 CMD+=" $use_fp16"
+CMD+=" --device-type=$gpu_device_type"
 
 LOGFILE=$OUT_DIR/logfile.txt
 echo "$CMD |& tee $LOGFILE"

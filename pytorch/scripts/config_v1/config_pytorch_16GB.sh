@@ -258,7 +258,7 @@ PyTorch_tacotron2_FP16_PARAMS=(
             --training-files          "filelists/ljs_audio_text_train_subset_625_filelist.txt"
             --dataset-path            "/data/tacotron2/LJSpeech-1.1"
             --cudnn-enabled
-            --amp-run
+            --amp
            )
 
 
@@ -296,7 +296,7 @@ PyTorch_waveglow_FP16_PARAMS=(
             --dataset-path            "/data/tacotron2/LJSpeech-1.1"
             --cudnn-enabled
             --cudnn-benchmark
-            --amp-run            
+            --amp
            )
 
 PyTorch_bert_base_squad_FP32_PARAMS=(

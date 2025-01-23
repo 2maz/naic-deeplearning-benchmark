@@ -2,19 +2,23 @@
 
 NUM_GPU=${1:-1}
 GPU_SIZE=${2:-1}
+GPU_DEVICE_TYPE=${3}
 NUM_EXP=1
 
 function scale() {
     # 1rst argument is base-batchsize for 1GB
     # 2nd argument is an additional scaling introduced for multiple GPUs 
     #  to avoid out-of-memory errors
-    SCALING_FACTOR=$(($NUM_GPU*$GPU_SIZE))
+    SCALING_FACTOR=$GPU_SIZE
     if [ "$NUM_GPU" -gt 1 ]; then
         if [ "$2" != "" ]; then
-            export MULTIPLE_GPUS="*$2"
+            export MULTIPLE_GPUS="*2*$2"
         fi
     fi
-    NUMBER=`echo "$1*${SCALING_FACTOR}${MULTIPLE_GPUS}" | bc`
+    if [ "$GPU_DEVICE_TYPE" == 'xpu' ]; then
+        VENDOR_SCALE_FACTOR="*0.85"
+    fi
+    NUMBER=`echo "$1*${SCALING_FACTOR}${MULTIPLE_GPUS}${VENDOR_SCALE_FACTOR}" | bc`
     echo ${NUMBER%.*}
 }
 
@@ -249,7 +253,7 @@ PyTorch_tacotron2_FP32_PARAMS=(
             args
             -o                        "./"
             --model-name              "Tacotron2"
-            --learning-rate           "0.0" 
+            --learning-rate           "0.00001" 
             --epochs                  "2" 
             --batch-size              "$(scale 3 0.6)" 
             --weight-decay            "1e-6" 
@@ -265,7 +269,7 @@ PyTorch_tacotron2_FP16_PARAMS=(
             args
             -o                        "./"
             --model-name              "Tacotron2"
-            --learning-rate           "0.0" 
+            --learning-rate           "0.00001" 
             --epochs                  "3" 
             --batch-size              "$(scale 3.24 0.6)"
             --weight-decay            "1e-6" 
@@ -283,7 +287,7 @@ PyTorch_waveglow_FP32_PARAMS=(
             args      
             -o                        "./"
             --model-name              "WaveGlow"
-            --learning-rate           "0.0" 
+            --learning-rate           "0.00001" 
             --epochs                  "2" 
             --segment-length          "8000"
             --batch-size              "$(scale 0.65 0.6)" 
@@ -301,7 +305,7 @@ PyTorch_waveglow_FP16_PARAMS=(
             args      
             -o                        "./"
             --model-name              "WaveGlow"
-            --learning-rate           "0.0" 
+            --learning-rate           "0.00001"
             --epochs                  "2" 
             --segment-length          "8000"
             --batch-size              "$(scale 0.9375 0.6)" 
@@ -320,7 +324,7 @@ PyTorch_bert_base_squad_FP32_PARAMS=(
             args
             "/data/bert_base/bert_base_uncased.pt"
             "2.0"
-            "$(scale 1.5 0.7)"
+            "$(scale 2)"
             "0.0"
             "0.1"
             "fp32"
@@ -339,7 +343,7 @@ PyTorch_bert_base_squad_FP16_PARAMS=(
             args      
             "/data/bert_base/bert_base_uncased.pt"
             "2.0"
-            "$(scale 3 0.69)"
+            "$(scale 2)"
             "0.0"
             "0.1"
             "fp16"
@@ -358,7 +362,7 @@ PyTorch_bert_large_squad_FP32_PARAMS=(
             args      
             "/data/bert_large/bert_large_uncased.pt"
             "2.0"
-            "$(scale 0.5 0.7)"
+            "$(scale 0.7)"
             "0.0"
             "0.1"
             "fp32"
@@ -377,7 +381,7 @@ PyTorch_bert_large_squad_FP16_PARAMS=(
             args      
             "/data/bert_large/bert_large_uncased.pt"
             "2.0"
-            "$(scale 1 0.7)"
+            "$(scale 0.7)"
             "0.0"
             "0.1"
             "fp16"

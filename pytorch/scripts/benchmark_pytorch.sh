@@ -4,12 +4,17 @@ SYSTEM=${1:-"2080Ti"}
 func=${2:-"benchmark_pytorch_ncf"}
 task=${3:-"PyTorch_ncf_FP32"}
 
-source config_v1/config_pytorch_1GB.sh $NUM_GPU $GPU_SIZE
+echo "source config_v1/config_pytorch_1GB.sh $NUM_GPU $GPU_SIZE $GPU_DEVICE_TYPE"
+source config_v1/config_pytorch_1GB.sh $NUM_GPU $GPU_SIZE $GPU_DEVICE_TYPE
+
 get_current_time() {
     echo $(TZ=UTC date +"%s")
 }
 
 run_it() {
+    echo "Current working directory: $(pwd)"
+    echo "Command: $@"
+
     start_time=$(get_current_time)
     $@
     end_time=$(get_current_time)
@@ -22,6 +27,17 @@ run_it() {
     echo "# TASK START END EXIT_CODE SLURM_JOB_ID" >> ${result}
     echo "${task} ${start_time} ${end_time} ${result_marker} ${SLURM_JOB_ID}" >> ${result}
     echo "# END SUMMARY" >> ${result}
+}
+
+gpu_device_type() {
+    if [ -n "$GPU_DEVICE_TYPE" ]; then
+        # enforce autocast for xpu (for nvidia this is not always useful it seems)
+        if [ "$GPU_DEVICE_TYPE" == "xpu" ]; then
+                  echo "--device-type $GPU_DEVICE_TYPE --autocast"
+        else
+                  echo "--device-type $GPU_DEVICE_TYPE"
+        fi
+    fi
 }
 
 prepare_requirements() {
@@ -125,7 +141,7 @@ benchmark_pytorch_gnmt() {
     prepare_requirements
 
     TASK_PARAMS=${task}_PARAMS[@]
-    local command_para=$(sed 's/.*args //' <<<${!TASK_PARAMS})
+    local command_para="$(sed 's/.*args //' <<<${!TASK_PARAMS}) $(gpu_device_type)"
     local BATCH=`echo ${!TASK_PARAMS} | grep -oP '(?<=--train-batch-size )\w+'`
     
     echo "************************************************************"
@@ -144,8 +160,10 @@ benchmark_pytorch_ncf() {
     local task="$1"
     local result="$2"
 
+    prepare_requirements
+
     TASK_PARAMS=${task}_PARAMS[@]
-    local command_para=$(sed 's/.*args //' <<<${!TASK_PARAMS})
+    local command_para="$(sed 's/.*args //' <<<${!TASK_PARAMS}) $(gpu_device_type)"
     local BATCH=`echo ${!TASK_PARAMS} | grep -oP '(?<=--batch_size )\w+'`
 
     echo "************************************************************"
@@ -165,9 +183,13 @@ benchmark_pytorch_transformerxl() {
     local result="$2"
 
     prepare_requirements
+    AMD="--amp apex"
+    if [ -n "$GPU_DEVICE_TYPE" ] && [ "$GPU_DEVICE_TYPE" != "cuda" ]; then
+        AMP="--amp pytorch"
+    fi
     
     TASK_PARAMS=${task}_PARAMS[@]
-    local command_para=$(sed 's/.*args //' <<<${!TASK_PARAMS})
+    local command_para="$(sed 's/.*args //' <<<${!TASK_PARAMS}) $(gpu_device_type) $AMP"
     local BATCH=`echo ${!TASK_PARAMS} | grep -oP '(?<=--batch_size )\w+'`
 
     echo "************************************************************"
@@ -189,7 +211,7 @@ benchmark_pytorch_tacotron2() {
     prepare_requirements
 
     TASK_PARAMS=${task}_PARAMS[@]
-    local command_para=$(sed 's/.*args //' <<<${!TASK_PARAMS})
+    local command_para="$(sed 's/.*args //' <<<${!TASK_PARAMS}) $(gpu_device_type)"
     local BATCH=`echo ${!TASK_PARAMS} | grep -oP '(?<=--batch-size )\w+'`
 
     echo "************************************************************"
@@ -212,7 +234,7 @@ benchmark_pytorch_bert_squad() {
     prepare_requirements
 
     TASK_PARAMS=${task}_PARAMS[@]
-    local command_para=$(sed 's/.*args //' <<<${!TASK_PARAMS})
+    local command_para="$(sed 's/.*args //' <<<${!TASK_PARAMS}) $(gpu_device_type)"
     local BATCH=${task}_PARAMS[4]
 
     echo "************************************************************"

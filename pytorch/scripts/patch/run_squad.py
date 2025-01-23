@@ -29,12 +29,12 @@ from io import open
 
 import numpy as np
 import torch
+from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data import (DataLoader, RandomSampler, SequentialSampler,
                               TensorDataset)
 from torch.utils.data.distributed import DistributedSampler
 from tqdm import tqdm, trange
 
-from apex import amp
 from schedulers import LinearWarmUpScheduler
 from file_utils import PYTORCH_PRETRAINED_BERT_CACHE
 import modeling
@@ -696,33 +696,6 @@ def _compute_softmax(scores):
         probs.append(score / total_sum)
     return probs
 
-
-
-from apex.multi_tensor_apply import multi_tensor_applier
-class GradientClipper:
-    """
-    Clips gradient norm of an iterable of parameters. 
-    """
-    def __init__(self, max_grad_norm):
-        self.max_norm = max_grad_norm
-        if multi_tensor_applier.available:
-            import amp_C
-            self._overflow_buf = torch.cuda.IntTensor([0])
-            self.multi_tensor_l2norm = amp_C.multi_tensor_l2norm
-            self.multi_tensor_scale = amp_C.multi_tensor_scale
-        else:
-            raise RuntimeError('Gradient clipping requires cuda extensions')
-
-    def step(self, parameters):
-        l = [p.grad for p in parameters if p.grad is not None]
-        total_norm, _ = multi_tensor_applier(self.multi_tensor_l2norm, self._overflow_buf, [l], False)
-        total_norm = total_norm.item()
-        if (total_norm == float('inf')): return
-        clip_coef = self.max_norm / (total_norm + 1e-6)
-        if clip_coef < 1:
-            multi_tensor_applier(self.multi_tensor_scale, self._overflow_buf, [l, l], clip_coef)
-
-
 def main():
     parser = argparse.ArgumentParser()
 
@@ -740,6 +713,7 @@ def main():
                         help="The checkpoint file from pretraining")
 
     ## Other parameters
+    parser.add_argument("--device-type", default="cuda", type=str)
     parser.add_argument("--train_file", default=None, type=str, help="SQuAD json for training. E.g., train-v1.1.json")
     parser.add_argument("--predict_file", default=None, type=str,
                         help="SQuAD json for predictions. E.g., dev-v1.1.json or test-v1.1.json")
@@ -857,10 +831,17 @@ def main():
         device = torch.device("cuda" if torch.cuda.is_available() and not args.no_cuda else "cpu")
         n_gpu = torch.cuda.device_count()
     else:
-        torch.cuda.set_device(args.local_rank)
-        device = torch.device("cuda", args.local_rank)
-        # Initializes the distributed backend which will take care of sychronizing nodes/GPUs
-        torch.distributed.init_process_group(backend='nccl', init_method='env://')
+        if torch.cuda.is_available():
+            torch.cuda.set_device(args.local_rank)
+            device = torch.device("cuda", args.local_rank)
+            # Initializes the distributed backend which will take care of sychronizing nodes/GPUs
+            torch.distributed.init_process_group(backend='nccl', init_method='env://')
+        elif torch.xpu.is_available():
+            torch.xpu.set_device(args.local_rank)
+            device = torch.device(args.device_type, args.local_rank)
+            # Initializes the distributed backend which will take care of sychronizing nodes/GPUs
+            torch.distributed.init_process_group(backend='gloo', init_method='env://')
+
         n_gpu = 1
 
     if is_main_process():
@@ -950,20 +931,9 @@ def main():
     ]
     if args.do_train:
         if args.fp16:
-            try:
-                from apex.optimizers import FusedAdam
-            except ImportError:
-                raise ImportError(
-                    "Please install apex from https://www.github.com/nvidia/apex to use distributed and fp16 training.")
-            optimizer = FusedAdam(optimizer_grouped_parameters,
-                                  lr=args.learning_rate,
-                                  bias_correction=False)
-
-            if args.loss_scale == 0:
-                model, optimizer = amp.initialize(model, optimizer, opt_level="O2", keep_batchnorm_fp32=False,
-                                                      loss_scale="dynamic")
-            else:
-                model, optimizer = amp.initialize(model, optimizer, opt_level="O2", keep_batchnorm_fp32=False, loss_scale=args.loss_scale)
+            optimizer = torch.optim.AdamW(optimizer_grouped_parameters,
+                              lr=args.learning_rate,
+                              fused=(True and args.device_type != "xpu"))
             if args.do_train:
                 scheduler = LinearWarmUpScheduler(optimizer, warmup=args.warmup_proportion, total_steps=num_train_optimization_steps)
 
@@ -973,13 +943,9 @@ def main():
                                     warmup=args.warmup_proportion,
                                     t_total=num_train_optimization_steps)
 
-    if args.local_rank != -1:
-        try:
-            from apex.parallel import DistributedDataParallel as DDP
-        except ImportError:
-            raise ImportError(
-                "Please install apex from https://www.github.com/nvidia/apex to use distributed and fp16 training.")
-
+    if n_gpu == 1:
+        pass
+    elif args.local_rank != -1:
         model = DDP(model)
     elif n_gpu > 1:
         model = torch.nn.DataParallel(model)
@@ -1033,7 +999,8 @@ def main():
         train_dataloader = DataLoader(train_data, sampler=train_sampler, batch_size=args.train_batch_size * n_gpu)
 
         model.train()
-        gradClipper = GradientClipper(max_grad_norm=1.0)
+        scaler = torch.GradScaler()
+
         final_loss = None
         train_start = time.time()
         for epoch in range(int(args.num_train_epochs)):
@@ -1047,39 +1014,37 @@ def main():
                 if n_gpu == 1:
                     batch = tuple(t.to(device) for t in batch)  # multi-gpu does scattering it-self
                 input_ids, input_mask, segment_ids, start_positions, end_positions = batch
-                start_logits, end_logits = model(input_ids, segment_ids, input_mask)
-                # If we are on multi-GPU, split add a dimension
-                if len(start_positions.size()) > 1:
-                    start_positions = start_positions.squeeze(-1)
-                if len(end_positions.size()) > 1:
-                    end_positions = end_positions.squeeze(-1)
-                # sometimes the start/end positions are outside our model inputs, we ignore these terms
-                ignored_index = start_logits.size(1)
-                start_positions.clamp_(0, ignored_index)
-                end_positions.clamp_(0, ignored_index)
+                with torch.autocast(args.device_type, enabled=args.amp, dtype=torch.bfloat16):
+                    start_logits, end_logits = model(input_ids, segment_ids, input_mask)
+                    # If we are on multi-GPU, split add a dimension
+                    if len(start_positions.size()) > 1:
+                        start_positions = start_positions.squeeze(-1)
+                    if len(end_positions.size()) > 1:
+                        end_positions = end_positions.squeeze(-1)
+                    # sometimes the start/end positions are outside our model inputs, we ignore these terms
+                    ignored_index = start_logits.size(1)
+                    start_positions.clamp_(0, ignored_index)
+                    end_positions.clamp_(0, ignored_index)
 
-                loss_fct = torch.nn.CrossEntropyLoss(ignore_index=ignored_index)
-                start_loss = loss_fct(start_logits, start_positions)
-                end_loss = loss_fct(end_logits, end_positions)
-                loss = (start_loss + end_loss) / 2
+                    loss_fct = torch.nn.CrossEntropyLoss(ignore_index=ignored_index)
+                    start_loss = loss_fct(start_logits, start_positions)
+                    end_loss = loss_fct(end_logits, end_positions)
+                    loss = (start_loss + end_loss) / 2
+
                 if n_gpu > 1:
                     loss = loss.mean()  # mean() to average on multi-gpu.
                 if args.gradient_accumulation_steps > 1:
                     loss = loss / args.gradient_accumulation_steps
-                if args.fp16:
-                    with amp.scale_loss(loss, optimizer) as scaled_loss:
-                        scaled_loss.backward()
-                else:
-                    loss.backward()
+
+                scaler.scale(loss).backward()
                 
-                # gradient clipping  
-                gradClipper.step(amp.master_params(optimizer))         
- 
                 if (step + 1) % args.gradient_accumulation_steps == 0:
                     if args.fp16 :
                         # modify learning rate with special warm up for BERT which FusedAdam doesn't do
                         scheduler.step()
-                    optimizer.step()
+                    scaler.step(optimizer)
+                    scaler.update()
+
                     optimizer.zero_grad()
                     global_step += 1
 
