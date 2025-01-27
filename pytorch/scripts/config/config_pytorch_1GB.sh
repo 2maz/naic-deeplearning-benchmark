@@ -109,6 +109,7 @@ PyTorch_gnmt_FP32_PARAMS=(
             --epochs                  "1"
             --seed                    "2"
             --train-loader-workers    "64"
+            --save-dir                "/tmp/gnmt-FP32/"
            )
 
 PyTorch_gnmt_FP16_PARAMS=(
@@ -120,6 +121,7 @@ PyTorch_gnmt_FP16_PARAMS=(
             --epochs                  "1"
             --seed                    "2"
             --train-loader-workers    "64"
+            --save-dir                "/tmp/gnmt-FP16/"
            )
 
 PyTorch_ncf_FP32_PARAMS=(
