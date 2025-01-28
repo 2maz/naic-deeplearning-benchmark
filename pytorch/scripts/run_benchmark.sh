@@ -51,8 +51,8 @@ function system_info() {
 
 function install_requirements() {
     # FIXME: when using torchrun from the system install then
-    # boto3 seems not to be picked up correctly
-    pip install termcolor boto3
+    # boto3 and sacremoses seems not to be picked up correctly
+    pip install termcolor boto3 sacremoses
     pip install 'git+https://github.com/NVIDIA/dllogger'
 
     # bc is used for the scaling
