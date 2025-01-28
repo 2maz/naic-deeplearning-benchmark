@@ -119,7 +119,11 @@ def update_throughput(
             
             if process_summary:
                 _, start_time, end_time, exit_code, slurm_job_id = line.split(" ")
-                slurm_job_id = int(slurm_job_id.strip())
+                try:
+                    slurm_job_id = int(slurm_job_id.strip())
+                except Exception:
+                    # not run within a slurm job
+                    slurm_job_id = -1
                 process_summary = False
             elif re.match(r"# TASK START END EXIT_CODE SLURM_JOB_ID", line):
                 # Marker is set in benchmark_pytorch .sh
