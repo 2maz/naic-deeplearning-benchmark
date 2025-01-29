@@ -138,7 +138,9 @@ benchmark_pytorch_gnmt() {
     echo "************************************************************"
 
     # export NCCL_P2P_DISABLE=1
-    run_it torchrun --nproc_per_node=${NUM_GPU} train.py ${command_para} |& tee ${result}
+    # FIME: Using torch.distributed.run instead of torchrun, since torchrun does not pick up
+    # some local dependencies in venv
+    run_it python -m torch.distributed.run --nproc_per_node=${NUM_GPU} train.py ${command_para} |& tee ${result}
 }
 
 
