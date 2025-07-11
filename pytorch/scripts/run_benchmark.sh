@@ -7,7 +7,11 @@ STAGE=${4}
 
 RESULTS_DIR=/tmp/naic-benchmark-results-dir
 SCRIPTS_DIR=$(dirname $(realpath -L $0))
-DATA_DIR=
+
+if [ -z $GPU_COUNT ]; then
+    echo "GPU_COUNT is not set"
+    exit 1
+fi
 
 function system_info() {
     SYSTEM=${1:-"2080Ti"}
@@ -39,6 +43,7 @@ function system_info() {
     echo "CPU: "${CPU_NAME}                >> $SYSTEM_FILE
     echo "CPU Memory: "${CPU_MEM}          >> $SYSTEM_FILE
     echo "GPU: "${GPU_NAME}                >> $SYSTEM_FILE
+    echo "GPU Count: "${GPU_COUNT}         >> $SYSTEM_FILE
     echo "GPU Memory: "${GPU_MEM}          >> $SYSTEM_FILE
     echo "NVIDIA driver: "${NVIDIA_DRIVER} >> $SYSTEM_FILE
     echo "CUDA Version: "${CUDA_VERSION}   >> $SYSTEM_FILE
@@ -46,6 +51,7 @@ function system_info() {
     echo "Motherboard: "${MB}              >> $SYSTEM_FILE
     echo "OS: "${PLATFORM_NAME}            >> $SYSTEM_FILE
     echo "PyTorch Version: "${PT_VERSION}  >> $SYSTEM_FILE
+
     chmod -R a+rwx $SYSTEM_FILE
 }
 
@@ -82,7 +88,7 @@ function compile_results() {
 
 function get_task_folder() {
     source $SCRIPTS_DIR/tasks.sh
-    source $SCRIPTS_DIR/config/config_pytorch_1GB.sh $NUM_GPU $GPU_SIZE $GPU_DEVICE_TYPE
+    source $SCRIPTS_DIR/conf.d/pytorch.1GB.conf $GPU_COUNT $GPU_SIZE $GPU_DEVICE_TYPE
 
     TASK=$1
     TASK_PARAMS=${TASK}_PARAMS[@]
@@ -92,7 +98,7 @@ function get_task_folder() {
 
 function get_task_arguments() {
     source $SCRIPTS_DIR/tasks.sh
-    source $SCRIPTS_DIR/config/config_pytorch_1GB.sh $NUM_GPU $GPU_SIZE $GPU_DEVICE_TYPE
+    source $SCRIPTS_DIR/conf.d/pytorch.1GB.conf $GPU_COUNT $GPU_SIZE $GPU_DEVICE_TYPE
 
     TASK=$1
     TASK_PARAMS=${TASK}_PARAMS[@]
@@ -116,7 +122,7 @@ function prepare_task_venv() {
 
 function run_tasks() {
     echo "System: ${SYSTEM}"
-    echo "Number of GPUs: ${NUM_GPU}"
+    echo "GPU_COUNT: ${GPU_COUNT}"
     echo "GPU_SIZE: ${GPU_SIZE} GB"
 
     cd $SCRIPTS_DIR

@@ -1,0 +1,42 @@
+#!/bin/bash
+
+### BEGIN GENERIC SETUP
+SCRIPT_DIR=$(realpath -L $(dirname $0))
+source $SCRIPT_DIR/utils.sh
+
+BENCHMARK_NAME=$(basename -s .run $0)
+
+DATA_DIR=$(realpath -L ${1:-/data})
+BENCHMARK_DIR=$(realpath -L ${2:-benchmark})
+
+RESULTS_PATH=$(realpath -L ${3:-/tmp/naic-bench/results/$BENCHMARK_NAME)
+
+mkdir -p $RESULTS_DIR
+### END GENERIC SETUP
+
+cd $BENCHMARK_DIR/Detection/SSD \
+BATCH_SIZE=$(scale 3 0.6)
+
+COMMAND_PARAMETERS="
+     --data                   $DATA_DIR/object_detection
+     --batch-size             $BATCH_SIZE
+     --benchmark-warmup       50
+     --benchmark-iterations   200
+     --learning-rate          0
+     --num-workers            64
+"
+set +x
+# Disable output
+
+echo "************************************************************"
+echo "GLOBAL_BATCH $((BATCH * GPU_COUNT))" > ${RESULTS_PATH}/benchmark.para
+echo "GPU ${GPU_COUNT}" >> ${RESULTS_PATH}/benchmark.para
+echo "************************************************************"
+
+# export NCCL_P2P_DISABLE=1
+run_it torchrun \
+    --nproc_per_node=${GPU_COUNT} \
+    main.py --mode benchmark-training  \
+    ${COMMAND_PARAMETERS} |& tee ${result} 
+
+

@@ -1,0 +1,20 @@
+#!/bin/bash
+set -e
+
+DATA_DIR=$(realpath -L ${1:-/data})
+BENCHMARK_DIR=$(realpath -L ${2:-benchmark})
+
+# -------------------------
+# PyTorch gnmt
+# -------------------------
+echo "PyTorch gnmt"
+pushd .
+
+cd $BENCHMARK_DIR/Translation/GNMT
+
+pip install -r requirements.txt
+mkdir -p $DATA_DIR/gnmt/wmt16_de_en
+bash scripts/wmt16_en_de.sh $DATA_DIR/gnmt/wmt16_de_en
+chmod -R a+rwx $DATA_DIR/gnmt/
+
+popd

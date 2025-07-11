@@ -1,16 +1,24 @@
 #!/bin/bash
+set -e
+
 NAME_DATASET=${1:-"all"}
+DATA_DIR=${2:-/data}
+BENCHMARK_DIR=${3:-benchmark}
 
-# PyTorch
-cp /scripts/patch/wmt16_en_de.sh benchmark/Translation/GNMT/scripts
+SCRIPT_DIR=$(realpath -L $(dirname $0))
 
-cp /scripts/patch/getdata.sh benchmark/LanguageModeling/Transformer-XL
-cp /scripts/patch/get_wikitext.py benchmark/LanguageModeling/Transformer-XL
+DEBIAN_FRONTEND=noninteractive apt update && apt install -y --quiet \
+    curl \
+    git \
+    python3-venv python3-pip \
+    unzip \
+    wget
 
-cp /scripts/patch/prepare_dataset.sh benchmark/SpeechSynthesis/Tacotron2/scripts
-cp /scripts/patch/squad_download.sh benchmark/LanguageModeling/BERT/data/squad
-cp /scripts/patch/run_squad.sh benchmark/LanguageModeling/BERT/scripts
-cp /scripts/patch/download_dataset.sh benchmark/Recommendation/NCF
-cp /scripts/patch/prepare_dataset_ncf.sh benchmark/Recommendation/NCF/prepare_dataset.sh
-
-./run_prepare_pytorch.sh $NAME_DATASET
+# Run all (matching) preparation script found in the subfolder prepare.d
+for file in $(ls $SCRIPT_DIR/conf.d/*.prepare); do
+    DATASET_NAME=$(basename -s .prepare $file)
+    if [ "$DATASET_NAME" == "$NAME_DATASET" ] || [ "$NAME_DATASET" == 'all' ]; then
+        echo "Running: $file $DATA_DIR $BENCHMARK_DIR"
+        $file $DATA_DIR $BENCHMARK_DIR
+    fi
+done

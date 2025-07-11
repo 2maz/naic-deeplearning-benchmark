@@ -3,11 +3,12 @@
 SYSTEM=${1:-"2080Ti"}
 func=${2:-"benchmark_pytorch_ncf"}
 task=${3:-"PyTorch_ncf_FP32"}
+
 RESULTS_PATH=${4:-results}
 NUM_EXP=${5:-1}
 
-echo "source config/config_pytorch_1GB.sh $NUM_GPU $GPU_SIZE $GPU_DEVICE_TYPE"
-source config/config_pytorch_1GB.sh $NUM_GPU $GPU_SIZE $GPU_DEVICE_TYPE
+echo "source conf.d/pytorch.1GB.conf $GPU_COUNT $GPU_SIZE $GPU_DEVICE_TYPE"
+source conf.d/pytorch.1GB.conf $GPU_COUNT $GPU_SIZE $GPU_DEVICE_TYPE
 
 get_current_time() {
     echo $(TZ=UTC date +"%s")
@@ -53,12 +54,12 @@ benchmark_pytorch_ssd() {
 
     echo "************************************************************"
     echo $command_para
-    echo "GLOBAL_BATCH $((BATCH * NUM_GPU))" > ${RESULTS_PATH}/benchmark.para
-    echo "GPU ${NUM_GPU}" >> ${RESULTS_PATH}/benchmark.para
+    echo "GLOBAL_BATCH $((BATCH * GPU_COUNT))" > ${RESULTS_PATH}/benchmark.para
+    echo "GPU ${GPU_COUNT}" >> ${RESULTS_PATH}/benchmark.para
     echo "************************************************************"
 
     # export NCCL_P2P_DISABLE=1
-    run_it torchrun --nproc_per_node=${NUM_GPU} main.py \
+    run_it torchrun --nproc_per_node=${GPU_COUNT} main.py \
     --mode benchmark-training ${command_para} |& tee ${result} 
 }
 
@@ -74,12 +75,12 @@ benchmark_pytorch_resnet50() {
 
     echo "************************************************************"
     echo $command_para
-    echo "GLOBAL_BATCH $((BATCH * NUM_GPU))" > ${RESULTS_PATH}/benchmark.para
-    echo "GPU ${NUM_GPU}" >> ${RESULTS_PATH}/benchmark.para
+    echo "GLOBAL_BATCH $((BATCH * GPU_COUNT))" > ${RESULTS_PATH}/benchmark.para
+    echo "GPU ${GPU_COUNT}" >> ${RESULTS_PATH}/benchmark.para
     echo "************************************************************"
 
     # export NCCL_P2P_DISABLE=1
-    run_it python ./multiproc.py --nproc_per_node ${NUM_GPU} ./main.py \
+    run_it python ./multiproc.py --nproc_per_node ${GPU_COUNT} ./main.py \
     ${command_para} |& tee ${result}
 }
 
@@ -99,14 +100,14 @@ benchmark_pytorch_maskrcnn() {
     echo "************************************************************"
     echo $command_para
     echo "GLOBAL_BATCH ${BATCH}" > ${RESULTS_PATH}/benchmark.para
-    echo "GPU ${NUM_GPU}" >> ${RESULTS_PATH}/benchmark.para
+    echo "GPU ${GPU_COUNT}" >> ${RESULTS_PATH}/benchmark.para
     echo "************************************************************"
 
     # python setup.py install
     # pip install -r requirements.txt
 
     # export NCCL_P2P_DISABLE=1
-    run_it torchrun --nproc_per_node=${NUM_GPU} --use_env tools/train_net.py \
+    run_it torchrun --nproc_per_node=${GPU_COUNT} --use_env tools/train_net.py \
     --skip-test \
     ${command_para} \
     | tee $result
@@ -133,14 +134,14 @@ benchmark_pytorch_gnmt() {
     
     echo "************************************************************"
     echo $command_para
-    echo "GLOBAL_BATCH $((BATCH * NUM_GPU))" > ${RESULTS_PATH}/benchmark.para
-    echo "GPU ${NUM_GPU}" >> ${RESULTS_PATH}/benchmark.para
+    echo "GLOBAL_BATCH $((BATCH * GPU_COUNT))" > ${RESULTS_PATH}/benchmark.para
+    echo "GPU ${GPU_COUNT}" >> ${RESULTS_PATH}/benchmark.para
     echo "************************************************************"
 
     # export NCCL_P2P_DISABLE=1
     # FIME: Using torch.distributed.run instead of torchrun, since torchrun does not pick up
     # some local dependencies in venv
-    run_it python -m torch.distributed.run --nproc_per_node=${NUM_GPU} train.py ${command_para} |& tee ${result}
+    run_it python -m torch.distributed.run --nproc_per_node=${GPU_COUNT} train.py ${command_para} |& tee ${result}
 }
 
 
@@ -156,11 +157,11 @@ benchmark_pytorch_ncf() {
     echo "************************************************************"
     echo $command_para
     echo "GLOBAL_BATCH ${BATCH}" > ${RESULTS_PATH}/benchmark.para
-    echo "GPU ${NUM_GPU}" >> ${RESULTS_PATH}/benchmark.para
+    echo "GPU ${GPU_COUNT}" >> ${RESULTS_PATH}/benchmark.para
     echo "************************************************************"
 
     # export NCCL_P2P_DISABLE=1
-    run_it torchrun --nproc_per_node=${NUM_GPU} ncf.py ${command_para} |& tee ${result}
+    run_it torchrun --nproc_per_node=${GPU_COUNT} ncf.py ${command_para} |& tee ${result}
 }
 
 
@@ -181,11 +182,11 @@ benchmark_pytorch_transformerxl() {
     echo "************************************************************"
     echo $command_para
     echo "GLOBAL_BATCH ${BATCH}" > ${RESULTS_PATH}/benchmark.para
-    echo "GPU ${NUM_GPU}" >> ${RESULTS_PATH}/benchmark.para
+    echo "GPU ${GPU_COUNT}" >> ${RESULTS_PATH}/benchmark.para
     echo "************************************************************"
 
     # export NCCL_P2P_DISABLE=1
-    run_it torchrun --nproc_per_node=${NUM_GPU} train.py ${command_para} |& tee ${result}
+    run_it torchrun --nproc_per_node=${GPU_COUNT} train.py ${command_para} |& tee ${result}
 }
 
 
@@ -200,12 +201,12 @@ benchmark_pytorch_tacotron2() {
 
     echo "************************************************************"
     echo $command_para
-    echo "GLOBAL_BATCH $((BATCH * NUM_GPU))" > ${RESULTS_PATH}/benchmark.para
-    echo "GPU ${NUM_GPU}" >> ${RESULTS_PATH}/benchmark.para
+    echo "GLOBAL_BATCH $((BATCH * GPU_COUNT))" > ${RESULTS_PATH}/benchmark.para
+    echo "GPU ${GPU_COUNT}" >> ${RESULTS_PATH}/benchmark.para
     echo "************************************************************"
 
     # export NCCL_P2P_DISABLE=1
-    run_it python -m multiproc ${NUM_GPU} train.py \
+    run_it python -m multiproc ${GPU_COUNT} train.py \
     ${command_para}  |& tee ${result}
 }
 
@@ -221,8 +222,8 @@ benchmark_pytorch_bert_squad() {
 
     echo "************************************************************"
     echo $command_para
-    echo "GLOBAL_BATCH $((BATCH * NUM_GPU))" > ${RESULTS_PATH}/benchmark.para
-    echo "GPU ${NUM_GPU}" >> ${RESULTS_PATH}/benchmark.para    
+    echo "GLOBAL_BATCH $((BATCH * GPU_COUNT))" > ${RESULTS_PATH}/benchmark.para
+    echo "GPU ${GPU_COUNT}" >> ${RESULTS_PATH}/benchmark.para    
     echo "************************************************************"
 
     run_it bash scripts/run_squad.sh ${command_para} |& tee ${result}
