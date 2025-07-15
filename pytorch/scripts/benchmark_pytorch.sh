@@ -237,7 +237,7 @@ pushd .
 cd $command_path
 
 for i in $(seq 1 $NUM_EXP); do
-    name=${RESULTS_PATH}/$(date +Y%-%m-%d_%H-%M-%S)
+    name=${RESULTS_PATH}/$(date +%Y%m%d_%H%M%S)
     file_result="${name}.txt"
     $func $task $file_result
     sleep 5
