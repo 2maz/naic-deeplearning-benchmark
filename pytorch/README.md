@@ -8,7 +8,7 @@ This is the guide to run benchmark on a Lambda Cloud On-demand instance.
 export NAME_NGC=pytorch:24.10-py3
 export NAME_TYPE=LambdaOD_test
 export NAME_GPU=GH200_96GB
-export NUM_GPU=1
+export GPU_COUNT=1
 export NAME_RESULTS=results_v2
 export NAME_DATASET=all
 export NAME_TASKS=all
