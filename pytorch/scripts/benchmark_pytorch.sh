@@ -36,9 +36,12 @@ gpu_device_type() {
     if [ -n "$GPU_DEVICE_TYPE" ]; then
         # enforce autocast for xpu (for nvidia this is not always useful it seems)
         if [ "$GPU_DEVICE_TYPE" == "xpu" ]; then
-                  echo "--device-type $GPU_DEVICE_TYPE --autocast"
+            echo "--device-type $GPU_DEVICE_TYPE --autocast"
+        elif [ "$GPU_DEVICE_TYPE" == "rocm" ]; then
+            # ensure to use alias in pytorch
+            echo "--device-type cuda"
         else
-                  echo "--device-type $GPU_DEVICE_TYPE"
+            echo "--device-type $GPU_DEVICE_TYPE"
         fi
     fi
 }
