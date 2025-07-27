@@ -52,7 +52,7 @@ benchmark_pytorch_ssd() {
     local result="$2"
 
     TASK_PARAMS=${task}_PARAMS[@]
-    local command_para=$(sed 's/.*args //' <<<${!TASK_PARAMS})
+    local command_para=$(sed 's/.*args //' <<<${!TASK_PARAMS}) ${gpu_device_type}
     local BATCH=`echo ${!TASK_PARAMS} | grep -oP '(?<=--batch-size )\w+'`
 
     echo "************************************************************"
