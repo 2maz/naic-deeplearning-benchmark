@@ -86,7 +86,7 @@ benchmark_pytorch_resnet50() {
     echo "************************************************************"
 
     # export NCCL_P2P_DISABLE=1
-    run_it python ./multiproc.py --nproc_per_node ${GPU_COUNT} ./main.py \
+    run_it python ./multiproc.py --log-dir /tmp/resnet50 --nproc_per_node ${GPU_COUNT} ./main.py \
     ${command_para} |& tee ${result}
 }
 
