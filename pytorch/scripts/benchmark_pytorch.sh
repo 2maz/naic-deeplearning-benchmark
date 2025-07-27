@@ -62,7 +62,10 @@ benchmark_pytorch_ssd() {
     echo "************************************************************"
 
     # export NCCL_P2P_DISABLE=1
-    run_it torchrun --nproc_per_node=${GPU_COUNT} main.py \
+
+    # FIME: Using torch.distributed.run instead of torchrun, since torchrun does not pick up
+    # some local dependencies in venv
+    run_it python -m torch.distributed.run --nproc_per_node=${GPU_COUNT} main.py \
     --mode benchmark-training ${command_para} |& tee ${result} 
 }
 
@@ -110,7 +113,7 @@ benchmark_pytorch_maskrcnn() {
     # pip install -r requirements.txt
 
     # export NCCL_P2P_DISABLE=1
-    run_it torchrun --nproc_per_node=${GPU_COUNT} --use_env tools/train_net.py \
+    run_it python -m torch.distributed.run --nproc_per_node=${GPU_COUNT} --use_env tools/train_net.py \
     --skip-test \
     ${command_para} \
     | tee $result
@@ -164,7 +167,10 @@ benchmark_pytorch_ncf() {
     echo "************************************************************"
 
     # export NCCL_P2P_DISABLE=1
-    run_it torchrun --nproc_per_node=${GPU_COUNT} ncf.py ${command_para} |& tee ${result}
+
+    # FIME: Using torch.distributed.run instead of torchrun, since torchrun does not pick up
+    # some local dependencies in venv
+    run_it python -m torch.distributed.run --nproc_per_node=${GPU_COUNT} ncf.py ${command_para} |& tee ${result}
 }
 
 
@@ -189,7 +195,7 @@ benchmark_pytorch_transformerxl() {
     echo "************************************************************"
 
     # export NCCL_P2P_DISABLE=1
-    run_it torchrun --nproc_per_node=${GPU_COUNT} train.py ${command_para} |& tee ${result}
+    run_it python -m torch.distributed.run --nproc_per_node=${GPU_COUNT} train.py ${command_para} |& tee ${result}
 }
 
 
