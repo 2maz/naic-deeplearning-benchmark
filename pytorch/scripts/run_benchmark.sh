@@ -16,20 +16,23 @@ fi
 function system_info() {
     SYSTEM=${1:-"2080Ti"}
     CPU_NAME="$(lscpu | grep "Model name:" | sed -r 's/Model name:\s{1,}//g')"
-    CPU_MEM="$(free -h | grep Mem: | awk '{ print $2 }')"
+    CPU_MEMORY="$(free -h | grep Mem: | awk '{ print $2 }')"
 
-    GPU_NAME="$(nvidia-smi -i 0 --query-gpu=gpu_name --format=csv,noheader)"
-    GPU_NAME="${GPU_NAME// /_}"
-    GPU_MEM="$(nvidia-smi -i 0 --query-gpu=memory.total --format=csv,noheader)"
-    GPU_MEM="${GPU_MEM// /_}"
+    # TODO: switch to using sonar (or slurm-monitor)
+    if [ "$(command -v nvidia-smi)" != "" ]; then
+        GPU_NAME="$(nvidia-smi -i 0 --query-gpu=gpu_name --format=csv,noheader)"
+        GPU_NAME="${GPU_NAME// /_}"
+        GPU_MEMORY="$(nvidia-smi -i 0 --query-gpu=memory.total --format=csv,noheader)"
+        GPU_MEMORY="${GPU_MEM// /_}"
 
-    NVIDIA_DRIVER="$(nvidia-smi | grep "Driver Version:" | awk '{ print $3 }')"
-    CUDA_VERSION="$(nvcc --version | grep release | awk '{ print $NF }')"
+        GPU_DRIVER="$(nvidia-smi | grep "Driver Version:" | awk '{ print $3 }')"
 
-    CUDNN_MAJOR="$(cat /usr/include/cudnn.h | grep "#define CUDNN_MAJOR" | awk '{ print $NF }')"
-    CUDNN_MINOR="$(cat /usr/include/cudnn.h | grep "#define CUDNN_MINOR" | awk '{ print $NF }')"
-    CUDNN_PATCHLEVEL="$(cat /usr/include/cudnn.h | grep "#define CUDNN_PATCHLEVEL" | awk '{ print $NF }')"
-    CUDNN_VERSION=${CUDNN_MAJOR}"."${CUDNN_MINOR}"."${CUDNN_PATCHLEVEL}
+        CUDA_VERSION="$(nvcc --version | grep release | awk '{ print $NF }')"
+        CUDNN_MAJOR="$(cat /usr/include/cudnn_version.h | grep "#define CUDNN_MAJOR" | awk '{ print $NF }')"
+        CUDNN_MINOR="$(cat /usr/include/cudnn_version.h | grep "#define CUDNN_MINOR" | awk '{ print $NF }')"
+        CUDNN_PATCHLEVEL="$(cat /usr/include/cudnn_version.h | grep "#define CUDNN_PATCHLEVEL" | awk '{ print $NF }')"
+        CUDNN_VERSION=${CUDNN_MAJOR}"."${CUDNN_MINOR}"."${CUDNN_PATCHLEVEL}
+    fi
 
     MB="$(cat /sys/devices/virtual/dmi/id/board_{vendor,name,version} | tr '\n' ' ')"
     PLATFORM_NAME="$(cat /etc/os-release | grep "PRETTY_NAME=" | cut -c 14- | rev | cut -c 2- | rev)"
@@ -41,13 +44,15 @@ function system_info() {
     SYSTEM_FILE=${RESULTS_PATH}/sys_pytorch.txt
 
     echo "CPU: "${CPU_NAME}                >> $SYSTEM_FILE
-    echo "CPU Memory: "${CPU_MEM}          >> $SYSTEM_FILE
+    echo "CPU Memory: "${CPU_MEMORY}          >> $SYSTEM_FILE
     echo "GPU: "${GPU_NAME}                >> $SYSTEM_FILE
     echo "GPU Count: "${GPU_COUNT}         >> $SYSTEM_FILE
-    echo "GPU Memory: "${GPU_MEM}          >> $SYSTEM_FILE
-    echo "NVIDIA driver: "${NVIDIA_DRIVER} >> $SYSTEM_FILE
-    echo "CUDA Version: "${CUDA_VERSION}   >> $SYSTEM_FILE
-    echo "CUDNN Version: "$CUDNN_VERSION   >> $SYSTEM_FILE
+    echo "GPU Memory: "${GPU_MEMORY}          >> $SYSTEM_FILE
+    echo "GPU driver: "${GPU_DRIVER} >> $SYSTEM_FILE
+    if [ -n "$CUDA_VERSION" ]; then
+        echo "CUDA Version: "${CUDA_VERSION}   >> $SYSTEM_FILE
+        echo "CUDNN Version: "$CUDNN_VERSION   >> $SYSTEM_FILE
+    fi
     echo "Motherboard: "${MB}              >> $SYSTEM_FILE
     echo "OS: "${PLATFORM_NAME}            >> $SYSTEM_FILE
     echo "PyTorch Version: "${PT_VERSION}  >> $SYSTEM_FILE
@@ -121,6 +126,7 @@ function run_tasks() {
     echo "System: ${SYSTEM}"
     echo "GPU_COUNT: ${GPU_COUNT}"
     echo "GPU_SIZE: ${GPU_SIZE} GB"
+    echo "RESULTS_DIR: ${RESULTS_DIR}"
 
     cd $SCRIPTS_DIR
     source ./tasks.sh
@@ -185,10 +191,11 @@ function run_benchmarks() {
         echo "Neither singularity nor docker detected."
         exit 10
     fi
+
     
-    echo "Preparing system configuration for $SYSTEM -- results in $RESULTS_DIR"
+    echo "Preparing system configuration for $SYSTEM -- saving results in $RESULTS_DIR"
     system_info $SYSTEM $RESULTS_DIR
-    
+
     echo "Running benchmarks: task(s): $TASK_NAME -- timeout: $TIME_OUT"
     run_tasks $TASK_NAME
 
