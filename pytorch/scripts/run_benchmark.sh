@@ -5,7 +5,7 @@ TASK_NAME=${2:-"all"}
 TIME_OUT=${3:-"1800"}
 STAGE=${4}
 
-RESULTS_DIR=/tmp/naic-benchmark-results-dir
+RESULTS_DIR=${RESULTS_DIR:-/tmp/naic-benchmark-results-dir}
 SCRIPTS_DIR=$(dirname $(realpath -L $0))
 
 if [ -z $GPU_COUNT ]; then
@@ -70,9 +70,6 @@ function install_requirements() {
         echo "benchmark folder does not exist. Did you miss to link the DeepLearningExamples in $PWD"
         exit 10
     fi
-
-    cp $SCRIPTS_DIR/patch/run_squad.py benchmark/LanguageModeling/BERT
-    cp $SCRIPTS_DIR/patch/multiproc.py benchmark/SpeechSynthesis/Tacotron2
 }
 
 function compile_results() {
@@ -179,11 +176,17 @@ function prepare_venvs() {
 }
 
 function run_benchmarks() {
-    if [ ! -d /scripts ]; then
-        echo "It seems this script is not run inside a docker container"
+    if [ -n "$SINGULARITY_NAME" ]; then
+        echo "Running with singularity image: $SINGULARITY_NAME"
+    elif [ -f /.dockerenv ]; then
+        echo "Running within docker image"
+    else
+        echo "This benchmark needs to be run inside a prepared container."
+        echo "Neither singularity nor docker detected."
+        exit 10
     fi
     
-    echo "Preparing system configuration for $SYSTEM"
+    echo "Preparing system configuration for $SYSTEM -- results in $RESULTS_DIR"
     system_info $SYSTEM $RESULTS_DIR
     
     echo "Running benchmarks: task(s): $TASK_NAME -- timeout: $TIME_OUT"
